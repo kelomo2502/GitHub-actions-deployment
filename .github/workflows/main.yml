@@ -39,6 +39,7 @@ jobs:
       - name: Extract Docker Credentials
         run: |
           echo "Extracting Docker credentials from secret..."
+          # Ensure the secret is properly formatted and passed into jq
           DOCKER_USERNAME=$(echo "${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}" | jq -r '.DOCKER_USERNAME')
           DOCKER_PASSWORD=$(echo "${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}" | jq -r '.DOCKER_PASSWORD')
           echo "DOCKER_USERNAME=$DOCKER_USERNAME" >> $GITHUB_ENV
