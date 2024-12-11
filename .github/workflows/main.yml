@@ -53,7 +53,7 @@ jobs:
       - name: Debug Docker Secrets
         run: |
           echo "DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}"
-          echo "DOCKER_PASSWORD: ${{ env.DOCKER_PASSWORD }}"
+          echo "DOCKER_PASSWORD: <masked>" # Keep the password secure
 
       - name: Build and push Docker image
         run: |
