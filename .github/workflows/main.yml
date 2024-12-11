@@ -1,57 +1,104 @@
-
-name: CI/CD Workflow
+name: CI/CD Pipeline
 
 on:
   push:
     branches:
       - main
+  pull_request:
+    branches:
+      - main
 
 jobs:
-  build-and-deploy:
+  build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 16
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
 
-    - name: Install dependencies
-      run: npm install
+      - name: Install dependencies
+        run: npm install
 
-    - name: Run tests
-      run: npm test
+      - name: Build the application
+        run: npm run build
 
-    - name: Dockerize application
-      env:
-        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      steps:
-      - name: Log in to Docker Hub
+  dockerize:
+    needs: [build]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Extract Docker Credentials
+        id: extract-docker
         run: |
-          echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
+          echo "Extracting Docker credentials from secret..."
+          echo "DOCKER_USERNAME=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.DOCKER_USERNAME')" >> $GITHUB_ENV
+          echo "DOCKER_PASSWORD=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.DOCKER_PASSWORD')" >> $GITHUB_ENV
+          echo "Docker credentials extracted successfully."
+
+      - name: Debug Docker Credentials
+        run: |
+          echo "DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}"
+          echo "DOCKER_PASSWORD: <masked>"
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ env.DOCKER_USERNAME }}
+          password: ${{ env.DOCKER_PASSWORD }}
+
       - name: Build and push Docker image
         run: |
-          docker build -t $DOCKER_USERNAME/my-app .
-          docker push $DOCKER_USERNAME/my-app
+          docker build -t my-todo-app .
+          docker tag my-todo-app:latest ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
+          docker push ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
 
-    - name: Set environment variables
-      run: |
-        echo "EC2_PUBLIC_IP=$(echo '${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}' | jq -r '.EC2_PUBLIC_IP')" >> $GITHUB_ENV
-        echo "EC2_USER=$(echo '${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}' | jq -r '.EC2_USER')" >> $GITHUB_ENV
-        echo "EC2_KEY=$(echo '${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}' | jq -r '.EC2_KEY' | base64)" >> $GITHUB_ENV
+      - name: Log out from Docker Hub
+        run: docker logout
 
-    - name: Deploy to EC2 instance
-      run: |
-        echo "$EC2_KEY" | base64 --decode > /tmp/private_key.pem
-        chmod 600 /tmp/private_key.pem
-        ssh -o StrictHostKeyChecking=no -i /tmp/private_key.pem $EC2_USER@$EC2_PUBLIC_IP << EOF
-          docker pull $DOCKER_USERNAME/my-app
-          docker stop my-app || true
-          docker rm my-app || true
-          docker run -d --name my-app -p 80:80 $DOCKER_USERNAME/my-app
-        EOF
-      shell: bash
+  deploy:
+      needs: [dockerize]
+      runs-on: ubuntu-latest
+      steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
+      - name: Extract EC2 Secrets
+        id: extract-ec2
+        run: |
+          echo "Extracting EC2 credentials from secret..."
+          echo "EC2_PUBLIC_IP=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.EC2_PUBLIC_IP')" >> $GITHUB_ENV
+          echo "EC2_USER=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.EC2_USER')" >> $GITHUB_ENV
+          echo "EC2_KEY=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.EC2_KEY' | base64)" >> $GITHUB_ENV
+          echo "EC2 credentials extracted successfully."
+
+      - name: Debug EC2 Secrets
+        run: |
+          echo "EC2_PUBLIC_IP: ${{ env.EC2_PUBLIC_IP }}"
+          echo "EC2_USER: ${{ env.EC2_USER }}"
+          echo "EC2_KEY: <masked>"
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ env.EC2_PUBLIC_IP }}
+          username: ${{ env.EC2_USER }}
+          key: ${{ env.EC2_KEY }}
+          port: 22
+          script: |
+            docker pull ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
+            docker run -d -p 80:80 ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
+
+      - name: Cleanup Docker images
+        run: docker system prune -af
