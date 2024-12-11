@@ -33,35 +33,17 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Extract Docker Credentials
-        run: |
-          echo "Extracting Docker credentials from secret..."
-          # Ensure the secret is properly formatted and passed into jq
-          DOCKER_USERNAME=$(echo "${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}" | jq -r '.DOCKER_USERNAME')
-          DOCKER_PASSWORD=$(echo "${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}" | jq -r '.DOCKER_PASSWORD')
-          echo "DOCKER_USERNAME=$DOCKER_USERNAME" >> $GITHUB_ENV
-          echo "DOCKER_PASSWORD=$DOCKER_PASSWORD" >> $GITHUB_ENV
-          echo "Docker credentials extracted successfully."
-
-      - name: Debug Docker Credentials
-        run: |
-          echo "DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}"
-          echo "DOCKER_PASSWORD: <masked>"
-
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
         with:
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ env.DOCKER_PASSWORD }}
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
       - name: Build and push Docker image
         run: |
           docker build -t my-todo-app .
-          docker tag my-todo-app:latest ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
-          docker push ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
+          docker tag my-todo-app:latest ${{ secrets.DOCKER_USERNAME }}/my-todo-app:latest
+          docker push ${{ secrets.DOCKER_USERNAME }}/my-todo-app:latest
 
       - name: Log out from Docker Hub
         run: docker logout
@@ -73,36 +55,16 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Install jq
-        run: sudo apt-get install -y jq
-
-      - name: Extract EC2 Credentials
-        run: |
-          echo "Extracting EC2 credentials from secret..."
-          EC2_PUBLIC_IP=$(echo "${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}" | jq -r '.EC2_PUBLIC_IP')
-          EC2_USER=$(echo "${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}" | jq -r '.EC2_USER')
-          EC2_KEY=$(echo "${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}" | jq -r '.EC2_KEY')
-          echo "EC2_PUBLIC_IP=$EC2_PUBLIC_IP" >> $GITHUB_ENV
-          echo "EC2_USER=$EC2_USER" >> $GITHUB_ENV
-          echo "EC2_KEY=$EC2_KEY" >> $GITHUB_ENV
-          echo "EC2 credentials extracted successfully."
-
-      - name: Debug EC2 Secrets
-        run: |
-          echo "EC2_PUBLIC_IP: ${{ env.EC2_PUBLIC_IP }}"
-          echo "EC2_USER: ${{ env.EC2_USER }}"
-          echo "EC2_KEY: <masked>"
-
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v0.1.7
         with:
-          host: ${{ env.EC2_PUBLIC_IP }}
-          username: ${{ env.EC2_USER }}
-          key: ${{ env.EC2_KEY }}
+          host: ${{ secrets.EC2_PUBLIC_IP }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_KEY }}
           port: 22
           script: |
-            docker pull ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
-            docker run -d -p 80:80 ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
+            docker pull ${{ secrets.DOCKER_USERNAME }}/my-todo-app:latest
+            docker run -d -p 80:80 ${{ secrets.DOCKER_USERNAME }}/my-todo-app:latest
 
       - name: Cleanup Docker images
         run: docker system prune -af
