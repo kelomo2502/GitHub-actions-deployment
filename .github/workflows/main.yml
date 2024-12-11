@@ -18,7 +18,7 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
-          node-version: '16'
+          node-version: '18'
 
       - name: Install dependencies
         run: npm install
@@ -42,8 +42,8 @@ jobs:
       - name: Build and push Docker image
         run: |
           docker build -t my-todo-app .
-          docker tag my-todo-app:latest <your-dockerhub-username>/my-todo-app:latest
-          docker push <your-dockerhub-username>/my-todo-app:latest
+          docker tag my-todo-app:latest kelomo2502/my-todo-app:latest
+          docker push kelomo2502/my-todo-app:latest
 
   deploy:
     needs: [dockerize]
@@ -60,7 +60,7 @@ jobs:
           key: ${{ secrets.EC2_KEY }}
           port: 22
           script: |
-            docker pull <your-dockerhub-username>/my-todo-app:latest
+            docker pull kelomo2502/my-todo-app:latest
             docker stop my-todo-app || true
             docker rm my-todo-app || true
-            docker run -d --name my-todo-app -p 80:3000 <your-dockerhub-username>/my-todo-app:latest
+            docker run -d --name my-todo-app -p 80:3000 kelomo2502/my-todo-app:latest
