@@ -7,29 +7,4 @@ on:
       - main
 
 jobs:
-  build-and-deploy:
-    runs-on: ubuntu-latest
-
-    steps:
-    - name: Checkout repository
-      uses: actions/checkout@v3
-
-    - name: Set up Node.js
-      uses: actions/setup-node@v3
-      with:
-        node-version: 16
-
-    - name: Run tests
-      run: npm test
-
-    - name: Dockerize application
-      env:
-        DOCKER_USERNAME: ${{ secrets.DOCKER_USERNAME }}
-        DOCKER_PASSWORD: ${{ secrets.DOCKER_PASSWORD }}
-      steps:
-      - name: Log in to Docker Hub
-        run: |
-          echo $DOCKER_PASSWORD | docker login -u $DOCKER_USERNAME --password-stdin
-      - name: Build and push Docker image
-        run: |
 
