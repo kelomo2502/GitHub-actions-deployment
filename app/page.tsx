@@ -1,9 +1,11 @@
-import Image from "next/image";
 
 export default function Home() {
   return (
-    <section>
+    <div>
       <h1>My nextjs app is here</h1>
-    </section>
+      <p>Love is good</p>
+      <p>Still rinding</p>
+      <p>Dockerize has passed</p>
+    </div>
   );
 }
