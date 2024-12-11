@@ -1,94 +1,22 @@
-name: CI/CD Pipeline
+
+name: CI/CD Workflow
 
 on:
   push:
     branches:
       - main
-  pull_request:
-    branches:
-      - main
 
 jobs:
-  build:
+  build-and-deploy:
     runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: '18'
+    - name: Set up Node.js
+      uses: actions/setup-node@v3
+      with:
+        node-version: 16
 
-      - name: Install dependencies
-        run: npm install
+    - name: Install dependencies
+      run: npm install
 
-      - name: Build the application
-        run: npm run build
-
-  dockerize:
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Log out from Docker Hub (if previously logged in)
-        run: docker logout || true
-
-      - name: Extract Docker Credentials
-        id: extract-docker
-        run: |
-          echo "DOCKER_USERNAME=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.DOCKER_USERNAME')" >> $GITHUB_ENV
-          echo "DOCKER_PASSWORD=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.DOCKER_PASSWORD')" >> $GITHUB_ENV
-        env:
-          NODE_APP_GIT_ACTIONS_SECRET: ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}
-
-      - name: Log in to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ env.DOCKER_USERNAME }}
-          password: ${{ env.DOCKER_PASSWORD }}
-
-      - name: Debug Docker Secrets
-        run: |
-          echo "DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}"
-          echo "DOCKER_PASSWORD: <masked>" # Keep the password secure
-
-      - name: Build and push Docker image
-        run: |
-          docker build -t my-todo-app .
-          docker tag my-todo-app:latest ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
-          docker push ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
-
-      - name: Log out from Docker Hub (post-build)
-        run: docker logout
-
-  deploy:
-    needs: [dockerize]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
-
-      - name: Extract EC2 Secrets
-        id: extract-ec2
-        run: |
-          echo "EC2_PUBLIC_IP=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.EC2_PUBLIC_IP')" >> $GITHUB_ENV
-          echo "EC2_USER=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.EC2_USER')" >> $GITHUB_ENV
-          echo "EC2_KEY=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.EC2_KEY')" >> $GITHUB_ENV
-        env:
-          NODE_APP_GIT_ACTIONS_SECRET: ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}
-
-      - name: Deploy to EC2
-        uses: appleboy/ssh-action@v0.1.7
-        with:
-          host: ${{ env.EC2_PUBLIC_IP }}
-          username: ${{ env.EC2_USER }}
-          key: ${{ env.EC2_KEY }}
-          port: 22
-          script: |
-            docker pull ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
-            docker stop my-todo-app || true
-            docker rm my-todo-app || true
-            docker run -d --name my-todo-app -p 80:3000 ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
+    - name: Run tests
+      run: npm test
