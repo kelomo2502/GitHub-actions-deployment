@@ -6,6 +6,7 @@ export default function Home() {
       <p>Love is good</p>
       <p>Still rinding</p>
       <p>Dockerize has passed</p>
+      <h3>We must deploy  again</h3>
     </div>
   );
 }
