@@ -27,11 +27,14 @@ jobs:
         run: npm run build
 
   dockerize:
-    needs: [build]
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
+
+      - name: Install jq
+        run: sudo apt-get install -y jq
 
       - name: Log out from Docker Hub (if previously logged in)
         run: docker logout || true
@@ -39,8 +42,8 @@ jobs:
       - name: Extract Docker Credentials
         id: extract-docker
         run: |
-          echo "DOCKER_USERNAME=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.DOCKER_USERNAME')" >> $GITHUB_ENV
-          echo "DOCKER_PASSWORD=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.DOCKER_PASSWORD')" >> $GITHUB_ENV
+          echo "DOCKER_USERNAME=$(echo '${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}' | jq -r '.DOCKER_USERNAME')" >> $GITHUB_ENV
+          echo "DOCKER_PASSWORD=$(echo '${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}' | jq -r '.DOCKER_PASSWORD')" >> $GITHUB_ENV
 
       - name: Log in to Docker Hub
         uses: docker/login-action@v2
@@ -51,7 +54,7 @@ jobs:
       - name: Debug Docker Secrets
         run: |
           echo "DOCKER_USERNAME: ${{ env.DOCKER_USERNAME }}"
-          echo "DOCKER_PASSWORD: <masked>" # Keep the password secure
+          echo "DOCKER_PASSWORD: <masked>" # Mask the password to keep it secure
 
       - name: Build and push Docker image
         run: |
@@ -63,15 +66,31 @@ jobs:
         run: docker logout
 
   deploy:
-    needs: [dockerize]
+    needs: dockerize
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Install jq
+        run: sudo apt-get install -y jq
+
       - name: Extract EC2 Secrets
         id: extract-ec2
         run: |
-          echo "EC2_PUBLIC_IP=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.EC2_PUBLIC_IP')" >> $GITHUB_ENV
-          echo "EC2_USER=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.EC2_USER')" >> $GITHUB_ENV
-          echo "EC2_KEY=$(echo ${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }} | jq -r '.EC
+          echo "EC2_PUBLIC_IP=$(echo '${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}' | jq -r '.EC2_PUBLIC_IP')" >> $GITHUB_ENV
+          echo "EC2_USER=$(echo '${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}' | jq -r '.EC2_USER')" >> $GITHUB_ENV
+          echo "EC2_KEY=$(echo '${{ secrets.NODE_APP_GIT_ACTIONS_SECRET }}' | jq -r '.EC2_KEY')" >> $GITHUB_ENV
+
+      - name: Deploy to EC2
+        uses: appleboy/ssh-action@v0.1.7
+        with:
+          host: ${{ env.EC2_PUBLIC_IP }}
+          username: ${{ env.EC2_USER }}
+          key: ${{ env.EC2_KEY }}
+          port: 22
+          script: |
+            docker pull ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
+            docker stop my-todo-app || true
+            docker rm my-todo-app || true
+            docker run -d --name my-todo-app -p 80:3000 ${{ env.DOCKER_USERNAME }}/my-todo-app:latest
