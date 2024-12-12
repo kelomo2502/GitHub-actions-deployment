@@ -2,7 +2,6 @@
 
 import { useState } from "react";
 
-useState
 export default function Home() {
   const [count, setCount ] = useState(0)
   const increaseCount = () => setCount(count + 1)
