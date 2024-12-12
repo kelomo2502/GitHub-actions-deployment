@@ -28,10 +28,17 @@ export default function RootLayout({
     
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <nav><ul>Home</ul>
-        <ul>Services</ul>
-        <ul>About us</ul>
-        <ul>Contact</ul></nav>
+        <nav>
+          <ul>
+          <li>Home</li>
+        <li>Services</li>
+        <li>About us</li>
+        <li>Contact</li>
+        <li>Baba</li>
+        <li>Mama</li>
+        <li>Mummy</li>
+          </ul>
+        </nav>
         {children}
       </body>
     </html>
