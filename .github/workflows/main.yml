@@ -64,7 +64,7 @@ jobs:
           port: 22
           script: |
             docker pull ${{ secrets.DOCKER_USERNAME }}/my-todo-app:latest
-            docker run -d -p 80:80 ${{ secrets.DOCKER_USERNAME }}/my-todo-app:latest
+            docker run -d -p 3000:3000 ${{ secrets.DOCKER_USERNAME }}/my-todo-app:latest
 
       - name: Cleanup Docker images
         run: docker system prune -af
