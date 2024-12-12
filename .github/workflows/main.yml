@@ -9,7 +9,6 @@ on:
       - main
 
 jobs:
- deployment
   build:
     runs-on: ubuntu-latest
     steps:
