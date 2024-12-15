@@ -1,4 +1,0 @@
-*.js linguist-language=JavaScript
-*.tsx linguist-language=TypeScript
-*.Dockerfile linguist-language=Dockerfile
-*.TS linguist-language=tailwindCss
